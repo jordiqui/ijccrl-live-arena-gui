@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "Please cite this software using the metadata below."
+title: "IJCCRL Live Arena GUI"
+type: software
+authors:
+  - family-names: "Ruiz Centelles"
+    given-names: "Jorge"
+version: 1.0.0
+date-released: 2026-08-04
+license: Apache-2.0
+repository-code: "https://github.com/jordiqui/ijccrl-live-arena-gui"
+url: "https://github.com/jordiqui/ijccrl-live-arena-gui"
+abstract: "A real-time UCI chess-engine tournament orchestration and web broadcast system."

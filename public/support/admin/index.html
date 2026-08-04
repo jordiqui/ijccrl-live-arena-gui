@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support admin · IJCCRL</title>
+<link rel="stylesheet" href="/support/app.css">
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="kicker">IJCCRL Support</div>
+    <h1 class="title">Admin panel</h1>
+    <div class="copy">This page is the operator side for users, payments and premium overrides. It uses the existing admin cookie flow and the current JSON admin endpoints.</div>
+    <div class="nav">
+      <a href="/">Broadcast</a>
+      <a href="/support/register">Create account</a>
+      <a href="/support/login">Sign in</a>
+      <a href="/support/account">My account</a>
+    </div>
+  </section>
+  <div class="grid">
+    <section class="card tall">
+      <h2>Admin session</h2>
+      <form class="form two" id="admin-login-form">
+        <label class="field"><span class="label">Admin secret</span><input class="input mono" id="admin-secret" autocomplete="off" placeholder="Paste admin secret"></label>
+        <div class="actions"><button class="btn primary" type="submit">Login admin</button><button class="btn danger" id="admin-logout" type="button">Logout admin</button></div>
+      </form>
+      <div class="status" id="admin-status">Checking admin cookie…</div>
+    </section>
+    <section class="card tall">
+      <h2>Premium overrides</h2>
+      <form class="form two" id="grant-form">
+        <label class="field"><span class="label">Grant premium by email</span><input class="input" id="grant-email" type="email" placeholder="name@example.com"></label>
+        <div class="actions"><button class="btn primary" type="submit">Grant premium</button></div>
+      </form>
+      <form class="form two" id="revoke-form">
+        <label class="field"><span class="label">Revoke premium by email</span><input class="input" id="revoke-email" type="email" placeholder="name@example.com"></label>
+        <div class="actions"><button class="btn danger" type="submit">Revoke premium</button></div>
+      </form>
+      <div class="status" id="admin-action-status">Waiting for admin action.</div>
+    </section>
+    <section class="card tall">
+      <h2>Users</h2>
+      <form class="form two" id="users-query-form">
+        <label class="field"><span class="label">Query</span><input class="input" id="users-query" placeholder="email, nickname, name"></label>
+        <label class="field"><span class="label">Limit</span><input class="input" id="users-limit" type="number" min="1" max="100" value="25"></label>
+        <div class="actions" style="grid-column:1 / -1"><button class="btn" type="submit">Load users</button></div>
+      </form>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Verified</th><th>Premium</th><th>Expires</th><th>Rights</th></tr></thead><tbody id="users-body"><tr><td colspan="7">No data loaded yet.</td></tr></tbody></table></div>
+    </section>
+    <section class="card tall">
+      <h2>Payments</h2>
+      <form class="form two" id="payments-query-form">
+        <label class="field"><span class="label">Query</span><input class="input" id="payments-query" placeholder="email, attempt id, payer id"></label>
+        <label class="field"><span class="label">Status</span><input class="input" id="payments-status" placeholder="pending, paid, revoked"></label>
+        <div class="actions" style="grid-column:1 / -1"><button class="btn" type="submit">Load payments</button></div>
+      </form>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>User</th><th>Status</th><th>Amount</th><th>Provider</th><th>Attempt</th><th>Dates</th></tr></thead><tbody id="payments-body"><tr><td colspan="7">No data loaded yet.</td></tr></tbody></table></div>
+    </section>
+  </div>
+</div>
+<script src="/support/app.js"></script>
+<script>
+(async ()=>{
+  const S = window.IJSupport;
+  const adminStatus = S.byId('admin-status');
+  const actionStatus = S.byId('admin-action-status');
+  async function checkAdmin(){
+    try {
+      const data = await S.json(S.api.adminStatus);
+      S.setStatus(adminStatus, data.has_cookie ? 'Admin cookie active.' : 'No admin cookie active yet.', data.has_cookie ? 'ok' : 'warn');
+      return !!data.has_cookie;
+    } catch (err) {
+      S.setStatus(adminStatus,'Admin status failed: ' + (err && err.message ? err.message : err),'bad');
+      return false;
+    }
+  }
+  async function loadUsers(){
+    const query = S.byId('users-query').value.trim();
+    const limit = Math.max(1, Math.min(100, Number(S.byId('users-limit').value || 25)));
+    const body = S.byId('users-body');
+    body.innerHTML = '<tr><td colspan="7">Loading…</td></tr>';
+    try {
+      const data = await S.json(S.api.adminUsers + '?query=' + encodeURIComponent(query) + '&limit=' + encodeURIComponent(limit));
+      const items = Array.isArray(data.items) ? data.items : Array.isArray(data.users) ? data.users : Array.isArray(data.result && data.result.items) ? data.result.items : [];
+      if (!items.length){ body.innerHTML = '<tr><td colspan="7">No users found.</td></tr>'; return; }
+      body.innerHTML = items.map((u)=>{
+        const rights = [u.canVote ? 'Vote' : null, u.canUsePremiumEmoji ? 'Emoji' : null, u.canPublicRank ? 'Rank' : null].filter(Boolean).join(' · ') || '—';
+        return '<tr>' +
+          '<td><strong>' + S.escapeHtml(u.displayName || u.publicHandle || ('User #' + u.userId)) + '</strong><br><span class="mono">' + S.escapeHtml(u.publicHandle || '') + '</span></td>' +
+          '<td>' + S.escapeHtml(u.email || '') + '</td>' +
+          '<td>' + S.escapeHtml(u.role || '') + '</td>' +
+          '<td>' + S.escapeHtml(u.isEmailVerified ? 'Yes' : 'No') + '</td>' +
+          '<td>' + S.escapeHtml(u.isPremium ? 'Yes' : 'No') + '</td>' +
+          '<td>' + S.escapeHtml(u.premiumExpiresAt ? S.fmtDate(u.premiumExpiresAt) : '—') + '</td>' +
+          '<td>' + S.escapeHtml(rights) + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="7">Load failed: ' + S.escapeHtml(err && err.message ? err.message : err) + '</td></tr>';
+    }
+  }
+  async function loadPayments(){
+    const query = S.byId('payments-query').value.trim();
+    const status = S.byId('payments-status').value.trim();
+    const body = S.byId('payments-body');
+    body.innerHTML = '<tr><td colspan="7">Loading…</td></tr>';
+    try {
+      const data = await S.json(S.api.adminPayments + '?query=' + encodeURIComponent(query) + '&status=' + encodeURIComponent(status) + '&limit=25');
+      const items = Array.isArray(data.items) ? data.items : Array.isArray(data.payments) ? data.payments : Array.isArray(data.result && data.result.items) ? data.result.items : [];
+      if (!items.length){ body.innerHTML = '<tr><td colspan="7">No payments found.</td></tr>'; return; }
+      body.innerHTML = items.map((p)=>{
+        const user = [p.displayName, p.publicHandle, p.email].filter(Boolean).join(' · ');
+        const dates = ['Created: ' + S.fmtDate(p.createdAt), p.purchasedAt ? 'Paid: ' + S.fmtDate(p.purchasedAt) : '', p.expiresAt ? 'Expires: ' + S.fmtDate(p.expiresAt) : ''].filter(Boolean).join('<br>');
+        return '<tr>' +
+          '<td class="mono">' + S.escapeHtml(p.id) + '</td>' +
+          '<td>' + S.escapeHtml(user || ('User #' + (p.userId || ''))) + '</td>' +
+          '<td>' + S.escapeHtml(p.status || '') + '</td>' +
+          '<td>' + S.escapeHtml(String(p.amountEur || 0) + ' ' + (p.currency || 'EUR')) + '</td>' +
+          '<td>' + S.escapeHtml(p.provider || '') + '</td>' +
+          '<td class="mono">' + S.escapeHtml(p.attemptId || p.providerPaymentId || '') + '</td>' +
+          '<td>' + dates + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="7">Load failed: ' + S.escapeHtml(err && err.message ? err.message : err) + '</td></tr>';
+    }
+  }
+  S.byId('admin-login-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const secret = S.byId('admin-secret').value.trim();
+    S.setStatus(adminStatus,'Opening admin session…','warn');
+    try {
+      await S.json(S.api.adminLogin,{method:'POST',body:{secret}});
+      S.setStatus(adminStatus,'Admin session opened.','ok');
+      await loadUsers();
+      await loadPayments();
+    } catch (err) {
+      S.setStatus(adminStatus,'Admin login failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('admin-logout').addEventListener('click', async ()=>{
+    S.setStatus(adminStatus,'Closing admin session…','warn');
+    try {
+      await S.json(S.api.adminLogout,{method:'POST',body:{}});
+      S.setStatus(adminStatus,'Admin session closed.','ok');
+    } catch (err) {
+      S.setStatus(adminStatus,'Admin logout failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('grant-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const email = S.byId('grant-email').value.trim();
+    S.setStatus(actionStatus,'Granting premium…','warn');
+    try {
+      await S.json(S.api.adminGrant,{method:'POST',body:{email,force:true}});
+      S.setStatus(actionStatus,'Premium granted.','ok');
+      await loadUsers();
+      await loadPayments();
+    } catch (err) {
+      S.setStatus(actionStatus,'Grant failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('revoke-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const email = S.byId('revoke-email').value.trim();
+    S.setStatus(actionStatus,'Revoking premium…','warn');
+    try {
+      await S.json(S.api.adminRevoke,{method:'POST',body:{email}});
+      S.setStatus(actionStatus,'Premium revoked.','ok');
+      await loadUsers();
+      await loadPayments();
+    } catch (err) {
+      S.setStatus(actionStatus,'Revoke failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('users-query-form').addEventListener('submit', async (ev)=>{ ev.preventDefault(); await loadUsers(); });
+  S.byId('payments-query-form').addEventListener('submit', async (ev)=>{ ev.preventDefault(); await loadPayments(); });
+  const has = await checkAdmin();
+  if (has){ await loadUsers(); await loadPayments(); }
+})();
+</script>
+</body>
+</html>

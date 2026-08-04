@@ -1,0 +1,33 @@
+{
+  "name": "ijccrl-live-arena-gui",
+  "version": "1.0.0",
+  "description": "Real-time UCI chess-engine tournament orchestration and web broadcast system.",
+  "private": true,
+  "type": "module",
+  "author": "Jorge Ruiz Centelles",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jordiqui/ijccrl-live-arena-gui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jordiqui/ijccrl-live-arena-gui/issues"
+  },
+  "homepage": "https://github.com/jordiqui/ijccrl-live-arena-gui#readme",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:env": "node --env-file=.env server.js",
+    "check": "node --check server.js && node --check scheduler.js && node --check uci_proxy.js && node --check pgn_store.js && node --check tools/chat_ws.js && node --check tools/support_auth.js && node --check tools/support_store.js && node --check tools/paypal_support.js && node --check scripts/extract_drr.js && node --check public/support/app.js",
+    "audit:pgn": "node scripts/audit_pgn_rr.cjs",
+    "audit:final": "python scripts/audit_ijccrl_final.py"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "express": "^5.2.1",
+    "nodemailer": "^8.0.5",
+    "ws": "^8.19.0"
+  }
+}
