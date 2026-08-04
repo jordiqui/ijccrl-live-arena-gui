@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Runtime output, evidence and user data
+out/
+out_*/
+out-prev*/
+out_prev*/
+debug/
+engine_inventory/
+*.pgn
+*.epd
+*.cko
+*.cpo
+*.pgi
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.jsonl
+*.log
+*.har
+*.profraw
+*.cache.*
+
+# Engines, networks, tablebases and learning files
+engines/
+Openings/
+Syzygy/
+Tablebases/
+*.exe
+*.dll
+*.so
+*.dylib
+*.nnue
+*.bin
+*.learn
+*.exp
+
+# Backups and generated archives
+backup*/
+backups/
+*.bak
+*.bak-*
+*.back
+*.old
+*.orig
+*.tmp
+*.zip
+*.7z
+*.rar
+
+# Operational text reports from private workspaces
+*.txt
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

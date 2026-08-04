@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My account · IJCCRL</title>
+<link rel="stylesheet" href="/support/app.css">
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="kicker">IJCCRL Support</div>
+    <h1 class="title">My account</h1>
+    <div class="copy">Review your verification state, premium status and support permissions. This page reads the live session directly from <code>/api/support/me</code>.</div>
+    <div class="nav">
+      <a href="/">Broadcast</a>
+      <a href="/support/register">Create account</a>
+      <a href="/support/login">Sign in</a>
+      <a href="/support/admin">Admin</a>
+    </div>
+  </section>
+  <div class="grid two-col">
+    <section class="card tall">
+      <h2>Session overview</h2>
+      <div class="status" id="account-status">Loading account…</div>
+      <div class="kv" id="account-kv">
+        <div class="kv-item"><div class="kv-k">Membership</div><div class="kv-v" id="kv-membership">—</div></div>
+        <div class="kv-item"><div class="kv-k">Email</div><div class="kv-v" id="kv-email">—</div></div>
+        <div class="kv-item"><div class="kv-k">Display name</div><div class="kv-v" id="kv-name">—</div></div>
+        <div class="kv-item"><div class="kv-k">Nickname</div><div class="kv-v" id="kv-handle">—</div></div>
+        <div class="kv-item"><div class="kv-k">Verified</div><div class="kv-v" id="kv-verified">—</div></div>
+        <div class="kv-item"><div class="kv-k">Badge</div><div class="kv-v" id="kv-badge">—</div></div>
+        <div class="kv-item"><div class="kv-k">Premium expires</div><div class="kv-v" id="kv-expires">—</div></div>
+        <div class="kv-item"><div class="kv-k">Support rights</div><div class="kv-v" id="kv-rights">—</div></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="refresh-account" type="button">Refresh</button>
+        <button class="btn primary" id="open-paypal" type="button">Open PayPal</button>
+        <button class="btn danger" id="logout-account" type="button">Logout</button>
+      </div>
+    </section>
+    <section class="card tall">
+      <h2>Password reset</h2>
+      <p>Request a reset token for the current account or any known identifier you own.</p>
+      <form class="form" id="account-reset-form">
+        <label class="field"><span class="label">Email or nickname</span><input class="input" id="account-reset-identifier" placeholder="email or nickname"></label>
+        <div class="actions"><button class="btn" type="submit">Request reset</button></div>
+      </form>
+      <div class="status" id="account-reset-status">Reset token not requested yet.</div>
+      <div class="footer-note">If you are not signed in yet, go to <a href="/support/login">/support/login</a>.</div>
+    </section>
+  </div>
+</div>
+<script src="/support/app.js"></script>
+<script>
+(async ()=>{
+  const S = window.IJSupport;
+  const status = S.byId('account-status');
+  const resetStatus = S.byId('account-reset-status');
+  async function load(){
+    try {
+      const data = await S.json(S.api.me);
+      const viewer = data && data.viewer ? data.viewer : {};
+      S.setStatus(status,(viewer.isRegistered ? 'Support session active.' : 'Guest session.') + '\n\n' + (viewer.isPremium ? 'Premium verified.' : (viewer.isRegistered ? 'Premium not active yet.' : 'Sign in or register to unlock support features.')), viewer.isPremium ? 'ok' : (viewer.isRegistered ? 'warn' : ''));
+      S.text(S.byId('kv-membership'), viewer.isPremium ? 'Premium' : (viewer.isRegistered ? 'Registered' : 'Guest'));
+      S.text(S.byId('kv-email'), viewer.email || 'Not linked');
+      S.text(S.byId('kv-name'), viewer.displayName || '—');
+      S.text(S.byId('kv-handle'), viewer.publicHandle || '—');
+      S.text(S.byId('kv-verified'), viewer.isEmailVerified ? 'Yes' : 'No');
+      S.text(S.byId('kv-badge'), viewer.badgeLabel || '—');
+      S.text(S.byId('kv-expires'), viewer.premiumExpiresAt ? S.fmtDate(viewer.premiumExpiresAt) : '—');
+      const rights = [viewer.canVote ? 'Vote' : null, viewer.canUsePremiumEmoji ? 'Premium emoji' : null, viewer.canPublicRank ? 'Public ranking' : null].filter(Boolean);
+      S.text(S.byId('kv-rights'), rights.length ? rights.join(' · ') : 'No elevated rights');
+      S.byId('account-reset-identifier').value = viewer.email || viewer.publicHandle || '';
+    } catch (err) {
+      S.setStatus(status,'Account load failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  }
+  S.byId('refresh-account').addEventListener('click', load);
+  S.byId('logout-account').addEventListener('click', async ()=>{
+    S.setStatus(status,'Closing session…','warn');
+    try {
+      await S.json(S.api.logout,{method:'POST',body:{}});
+      S.setStatus(status,'Session closed.','ok');
+      load();
+    } catch (err) {
+      S.setStatus(status,'Logout failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('open-paypal').addEventListener('click', async ()=>{
+    S.setStatus(status,'Opening PayPal…','warn');
+    try {
+      const data = await S.json(S.api.paypalStart,{method:'POST',body:{}});
+      if (data.redirectUrl) window.open(data.redirectUrl,'_blank','noopener');
+      S.setStatus(status,'PayPal opened in a new tab. Refresh the account after payment.','ok');
+    } catch (err) {
+      S.setStatus(status,'PayPal open failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('account-reset-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const identifier = S.byId('account-reset-identifier').value.trim();
+    S.setStatus(resetStatus,'Requesting password reset…','warn');
+    try {
+      const data = await S.json(S.api.resetRequest,{method:'POST',body:{identifier}});
+      const parts = ['Reset requested.'];
+      if (data.devResetUrl) parts.push('Development reset link: ' + data.devResetUrl);
+      S.setStatus(resetStatus,parts.join('\n\n'),'ok');
+    } catch (err) {
+      S.setStatus(resetStatus,'Reset request failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  await load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support sign in · IJCCRL</title>
+<link rel="stylesheet" href="/support/app.css">
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="kicker">IJCCRL Support</div>
+    <h1 class="title">Sign in to your support account</h1>
+    <div class="copy">Primary login is now <strong>email or nickname + password</strong>. The legacy one-time code flow remains available as fallback.</div>
+    <div class="nav">
+      <a href="/">Broadcast</a>
+      <a href="/support/register">Create account</a>
+      <a href="/support/account">My account</a>
+      <a href="/support/admin">Admin</a>
+    </div>
+  </section>
+  <div class="grid two-col">
+    <section class="card tall">
+      <h2>Password login</h2>
+      <form class="form" id="password-login-form">
+        <label class="field"><span class="label">Email or nickname</span><input class="input" id="identifier" autocomplete="username" placeholder="email or nickname" required></label>
+        <label class="field"><span class="label">Password</span><input class="input" id="login-password" type="password" autocomplete="current-password" required></label>
+        <div class="actions"><button class="btn primary" type="submit">Sign in</button><a class="btn" href="/support/register">Create account</a></div>
+      </form>
+      <div class="status" id="password-login-status">Waiting for input.</div>
+    </section>
+    <section class="card tall">
+      <h2>Fallback flows</h2>
+      <h3>One-time code</h3>
+      <form class="form" id="code-request-form">
+        <label class="field"><span class="label">Email</span><input class="input" id="code-email" type="email" autocomplete="email" placeholder="name@example.com"></label>
+        <div class="actions"><button class="btn" type="submit">Request code</button></div>
+      </form>
+      <form class="form" id="code-verify-form">
+        <label class="field"><span class="label">Code</span><input class="input" id="code-value" placeholder="Paste login code"></label>
+        <div class="actions"><button class="btn" type="submit">Verify code</button></div>
+      </form>
+      <h3>Reset password</h3>
+      <form class="form" id="reset-request-form">
+        <label class="field"><span class="label">Email or nickname</span><input class="input" id="reset-identifier" placeholder="email or nickname"></label>
+        <div class="actions"><button class="btn" type="submit">Request reset</button></div>
+      </form>
+      <div class="status" id="fallback-status">Fallback flows available.</div>
+    </section>
+  </div>
+</div>
+<script src="/support/app.js"></script>
+<script>
+(async ()=>{
+  const S = window.IJSupport;
+  const statusPwd = S.byId('password-login-status');
+  const statusFallback = S.byId('fallback-status');
+  S.byId('password-login-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const identifier = S.byId('identifier').value.trim();
+    const password = S.byId('login-password').value;
+    S.setStatus(statusPwd,'Signing in…','warn');
+    try {
+      await S.json(S.api.loginPassword,{method:'POST',body:{identifier,password}});
+      S.setStatus(statusPwd,'Login complete. Redirecting to your account…','ok');
+      setTimeout(()=>location.href='/support/account',500);
+    } catch (err) {
+      S.setStatus(statusPwd,'Login failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('code-request-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const email = S.byId('code-email').value.trim();
+    S.setStatus(statusFallback,'Requesting one-time code…','warn');
+    try {
+      const data = await S.json(S.api.loginRequestCode,{method:'POST',body:{email}});
+      const parts = ['Login code requested.'];
+      if (data.devCode) parts.push('Development code: ' + data.devCode);
+      if (data.devVerifyUrl) parts.push('Verify first: ' + data.devVerifyUrl);
+      S.setStatus(statusFallback,parts.join('\n\n'),'ok');
+    } catch (err) {
+      S.setStatus(statusFallback,'Code request failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('code-verify-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const email = S.byId('code-email').value.trim();
+    const code = S.byId('code-value').value.trim();
+    S.setStatus(statusFallback,'Verifying one-time code…','warn');
+    try {
+      await S.json(S.api.loginVerifyCode,{method:'POST',body:{email,code}});
+      S.setStatus(statusFallback,'Code login complete. Redirecting to your account…','ok');
+      setTimeout(()=>location.href='/support/account',500);
+    } catch (err) {
+      S.setStatus(statusFallback,'Code verify failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+  S.byId('reset-request-form').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const identifier = S.byId('reset-identifier').value.trim();
+    S.setStatus(statusFallback,'Requesting password reset…','warn');
+    try {
+      const data = await S.json(S.api.resetRequest,{method:'POST',body:{identifier}});
+      const parts = ['Password reset requested.'];
+      if (data.devResetUrl) parts.push('Development reset link: ' + data.devResetUrl);
+      else parts.push('If the account exists, backend logged the reset token.');
+      S.setStatus(statusFallback,parts.join('\n\n'),'ok');
+    } catch (err) {
+      S.setStatus(statusFallback,'Reset request failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+})();
+</script>
+</body>
+</html>

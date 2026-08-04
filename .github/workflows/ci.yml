@@ -1,0 +1,27 @@
+name: Source validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Validate JavaScript syntax
+        run: npm run check
+      - name: Validate Python utilities
+        run: python -m py_compile scripts/audit_ijccrl_final.py scripts/dedup_pgn.py

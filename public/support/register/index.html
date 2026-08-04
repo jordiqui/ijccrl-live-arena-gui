@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support register · IJCCRL</title>
+<link rel="stylesheet" href="/support/app.css">
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="kicker">IJCCRL Support</div>
+    <h1 class="title">Create your support account</h1>
+    <div class="copy">Register with your real email, public nickname and password. The account stays in <strong>pending verification</strong> until the email is confirmed.</div>
+    <div class="nav">
+      <a href="/">Broadcast</a>
+      <a href="/support/login">Sign in</a>
+      <a href="/support/account">My account</a>
+      <a href="/support/admin">Admin</a>
+    </div>
+  </section>
+  <div class="grid two-col">
+    <section class="card tall">
+      <h2>Register</h2>
+      <form class="form two" id="register-form">
+        <label class="field"><span class="label">Name</span><input class="input" id="name" name="name" maxlength="64" placeholder="Your public name" required></label>
+        <label class="field"><span class="label">Nickname</span><input class="input" id="nickname" name="nickname" maxlength="32" placeholder="Your public handle" required></label>
+        <label class="field" style="grid-column:1 / -1"><span class="label">Email</span><input class="input" id="email" name="email" type="email" autocomplete="email" placeholder="name@example.com" required></label>
+        <label class="field"><span class="label">Password</span><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" required></label>
+        <label class="field"><span class="label">Repeat password</span><input class="input" id="password2" name="password2" type="password" autocomplete="new-password" minlength="8" placeholder="Repeat password" required></label>
+        <div class="actions" style="grid-column:1 / -1"><button class="btn primary" type="submit">Create account</button></div>
+      </form>
+      <div class="help">The email verification link is logged by backend in local development. In production it should be delivered by email.</div>
+    </section>
+    <section class="card tall">
+      <h2>Next step</h2>
+      <p>After registration, verify the email before the session becomes active. Then you can sign in with <strong>email or nickname + password</strong>.</p>
+      <div class="status" id="register-status">Waiting for input.</div>
+      <div class="actions hidden" id="verify-actions">
+        <a class="btn primary" id="verify-link" href="#" target="_blank" rel="noopener">Open verification link</a>
+        <a class="btn" href="/support/login">Go to sign in</a>
+      </div>
+      <div class="footer-note">Admin can inspect all pending and verified users later from <code>/support/admin</code>.</div>
+    </section>
+  </div>
+</div>
+<script src="/support/app.js"></script>
+<script>
+(async ()=>{
+  const {$=undefined} = {};
+  const S = window.IJSupport;
+  const form = S.byId('register-form');
+  const status = S.byId('register-status');
+  const actions = S.byId('verify-actions');
+  const verifyLink = S.byId('verify-link');
+  form.addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const name = S.byId('name').value.trim();
+    const nickname = S.byId('nickname').value.trim();
+    const email = S.byId('email').value.trim();
+    const password = S.byId('password').value;
+    const password2 = S.byId('password2').value;
+    if (!name || !nickname || !email || !password){ S.setStatus(status,'Complete all fields.','bad'); return; }
+    if (password !== password2){ S.setStatus(status,'Passwords do not match.','bad'); return; }
+    if (password.length < 8){ S.setStatus(status,'Password must be at least 8 characters.','bad'); return; }
+    S.setStatus(status,'Creating pending account…','warn');
+    try {
+      const data = await S.json(S.api.register,{method:'POST',body:{name, nickname, email, password}});
+      let msg = 'Registration stored. Verify the email before the session becomes active.';
+      if (data.devVerifyUrl) {
+        verifyLink.href = data.devVerifyUrl;
+        actions.classList.remove('hidden');
+        msg += '\n\nDevelopment verification link ready.';
+      } else {
+        actions.classList.add('hidden');
+      }
+      S.setStatus(status,msg,'ok');
+      form.reset();
+    } catch (err) {
+      S.setStatus(status,'Register failed: ' + (err && err.message ? err.message : err),'bad');
+    }
+  });
+})();
+</script>
+</body>
+</html>
